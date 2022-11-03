@@ -1,0 +1,51 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: kafkatopicusers.hybridcloud.maibornwolff.de
+spec:
+  scope: Namespaced
+  group: hybridcloud.maibornwolff.de
+  names:
+    kind: KafkaTopicUser
+    plural: kafkatopicusers
+    singular: kafkatopicuser
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                topicRef:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                    - name
+                permissions:
+                  type: object
+                  properties:
+                    consume:
+                      type: boolean
+                    produce:
+                      type: boolean
+                  required:
+                    - consume
+                    - produce
+                credentialsSecret:
+                  type: string
+              required:
+                - topicRef
+                - permissions
+                - credentialsSecret
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+              nullable: true

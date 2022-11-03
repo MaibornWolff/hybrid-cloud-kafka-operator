@@ -1,0 +1,7 @@
+.vscode
+.pyc
+__pycache__
+/charts
+.venv
+/helm/*/charts
+/helm/*/Chart.lock

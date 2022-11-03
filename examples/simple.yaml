@@ -1,0 +1,31 @@
+apiVersion: hybridcloud.maibornwolff.de/v1alpha1
+kind: KafkaBroker
+metadata:
+  name: demo
+  namespace: default
+---
+apiVersion: hybridcloud.maibornwolff.de/v1alpha1
+kind: KafkaTopic
+metadata:
+  name: demotopic
+  namespace: default
+spec:
+  brokerRef:
+    name: demo
+  kafka:
+    partitions: 1
+    retentionInDays: 1
+  credentialsSecret: demotopic-kafka-credentials
+---
+apiVersion: hybridcloud.maibornwolff.de/v1alpha1
+kind: KafkaTopicUser
+metadata:
+  name: demotopic-listener
+  namespace: default
+spec:
+  topicRef:
+    name: demotopic
+  permissions:
+    consume: true
+    produce: false
+  credentialsSecret: demotopic-listener-kafka-credentials

@@ -1,0 +1,5 @@
+azure-identity==1.7.1
+azure-mgmt-resource==20.0.0
+azure-mgmt-eventhub==10.1.0
+requests==2.28.0
+git+https://github.com/MaibornWolff/hybrid-cloud-operator-library.git@54530af
