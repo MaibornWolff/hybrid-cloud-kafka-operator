@@ -6,7 +6,7 @@ In classical cloud environments things like message brokers would typically be m
 
 Additionally the operator also provides a consistent interface regardless of the environment (cloud provider, on-premise) the kubernetes cluster runs in. This means in usecases where teams have to deploy to clusters running in different environments they still get the same interface on all clusters and do not have to concern themselves with any differences.
 
-**Note**: This operator is a work-in-progress and the Strimzi backend hasn't been used in production by us. As such it might not yet be suited for production deployments. As always, use at your own risk.
+**Note**: This operator is a work-in-progress and hasn't been tested thoroughly yet. As such it might not yet be suited for production deployments. As always, use at your own risk.
 
 Main features:
 
