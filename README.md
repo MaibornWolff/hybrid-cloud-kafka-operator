@@ -1,6 +1,6 @@
 # Hybrid Cloud Operator for Kafka 
 
-The Hybrid Cloud Operator for Kafka is a Kubernetes operators that has been designed for hybrid cloud, multi-teams kubernetes platforms to allow users and teams to deploy and manage their own Kafka brokers via kubernetes without cloud provider specific provisioning.
+The Hybrid Cloud Operator for Kafka is a Kubernetes Operator that has been designed for hybrid cloud, multi-teams kubernetes platforms to allow users and teams to deploy and manage their own Kafka brokers via kubernetes without cloud provider specific provisioning.
 
 In classical cloud environments things like message brokers would typically be managed by a central platform team via infrastructure automation like terraform. But this means when different teams are active on such a platform there exists a bottleneck because that central platform team must handle all requests for access to the broker. With this operator teams in kubernetes gain the potential to manage the broker on their own. And because the operator integrates into the kubernetes API the teams have the same unified interface/API for all their deployments: Kubernetes YAMLs.
 
