@@ -99,7 +99,7 @@ async def topic_delete(spec, status, name, namespace, logger, **kwargs):
 
     delete_secret(namespace, spec["credentialsSecret"])
 
-    backend.delete_topic_credentials(topic_info, broker_info)
+    await backend.delete_topic_credentials(topic_info, broker_info)
     if backend.topic_exists(namespace, name, broker_info):
         await backend.delete_topic(namespace, name, broker_info)
 
