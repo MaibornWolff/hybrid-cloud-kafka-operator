@@ -146,7 +146,7 @@ def _generate_kafka_spec(namespace, name, spec, class_def):
         },
         "spec": {
             "kafka": {
-                "version": class_def.get("version", "3.2.3"),
+                "version": class_def.get("version", "3.4.0"),
                 "replicas": class_def.get("kafka_replicas", 1),
                 "authorization": {
                     "type": "simple",
