@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import kopf
 from .routing import kafka_backend
 from hybridcloud_core.configuration import config_get
@@ -105,6 +106,7 @@ def _status(name, namespace, status_obj, status, reason=None, backend=None, brok
         status_obj["topic_info"] = topic_info
     status_obj["deployment"] = {
         "status": status,
-        "reason": reason
+        "reason": reason,
+        "latest-update": datetime.now(tz=timezone.utc).isoformat()
     }
     patch_namespaced_custom_object_status(k8s.KafkaTopicUser, namespace, name, status_obj)
