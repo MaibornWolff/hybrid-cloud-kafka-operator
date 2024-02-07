@@ -1,5 +1,7 @@
-azure-identity==1.13.0
+azure-identity==1.15.0
 azure-mgmt-resource==23.0.1
 azure-mgmt-eventhub==11.0.0
+azure-mgmt-privatedns==1.1.0
+azure-mgmt-network==25.2.0
 requests==2.31.0
-git+https://github.com/MaibornWolff/hybrid-cloud-operator-library.git@068c411
+git+https://github.com/MaibornWolff/hybrid-cloud-operator-library.git@19a8275

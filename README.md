@@ -1,4 +1,4 @@
-# Hybrid Cloud Operator for Kafka 
+# Hybrid Cloud Operator for Kafka
 
 The Hybrid Cloud Operator for Kafka is a Kubernetes Operator that has been designed for hybrid cloud, multi-teams kubernetes platforms to allow users and teams to deploy and manage their own Kafka brokers via kubernetes without cloud provider specific provisioning.
 
@@ -56,6 +56,16 @@ backends:
       default_capacity: 1  # Default capacity to use for the Eventhub namespaces. Range 1-20, optional
       name_pattern: "{namespace}-{name}"  # Name pattern to use for the Eventhub namespaces, optional
       fake_delete: false  # If set to true the operator will not actually delete the eventhub namespace when the object in kubernetes is deleted, optional
+      network:
+        public_network_access: true # Allow access to the eventhub namespace from the public internet, optional
+        allow_trusted_services: true # Allow access to the eventhub namespace from trusted azure services (relevant if public access is disabled), optional
+        create_private_endpoint: false # If set to true the operator will create private endpoints for each subnet listed unter allowed_subnets, optional
+        allowed_ips: # List of IP nets to allow access to the Eventhub namespace, optional
+          - cidr: 127.0.0.1/128 # IP net CIDR
+        allowed_subnets: # List of VNet subnets to allow access to the Eventhub namespace, optional
+          - vnet: # Name of the virtual network, required
+            subnet: # Name of the subnet, required
+            resource_group: # Name of the resource group to provision the private endpoint in, if not set group of eventhub will be used, optional
     topic:
       fake_delete: false  # If set to true the operator will not actually delete the eventhub when the object in kubernetes is deleted, optional
       name_pattern: "{namespace}-{name}"  # Name pattern to use for the Eventhub, optional
@@ -73,7 +83,18 @@ backends:
           kafka_config:   # map of kafka config options to use for the broker, optional
 ```
 
-For the operator to interact with Azure it needs credentials. For local testing it can pick up the token from the azure cli but for real deployments it needs a dedicated service principal. Supply the credentials for the service principal using the environment variables `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` (if you deploy via the helm chart use the use `envSecret` value). The service principal needs permissions to manage Azure EventHubs.
+For the operator to interact with Azure it needs credentials. For local testing it can pick up the token from the azure cli but for real deployments it needs a dedicated service principal. Supply the credentials for the service principal using the environment variables `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` (if you deploy via the helm chart use the use `envSecret` value). The service principal needs permissions to manage Azure Event Hubs.
+
+### Azure Event Hubs
+
+If you configure the operator to create private endpoints, some rquirements must be met:
+
+* The user/principal/identity the operator uses must have permissions to manage networks (to configure the private endpoints) and DNS zones.
+* You must have at least one virtual network with a subnet in the resource group.
+* The resource group must have an existing private DNS zone for the domain `privatelink.servicebus.windows.net`.
+* The DNS zone must be linked to any virtual network that should access an Event Hub.
+
+Right now the operator only supports one private endpoint per resource group due to the connection with the private DNS zone. Also if you change the list of subnets and remove one the operator will not remove the endpoints from existing Event Hub namespaces.
 
 ### Deployment
 
@@ -164,7 +185,7 @@ To run it locally follow these steps:
 2. Install dependencies: `pip install -r requirements.txt`
 3. Setup a local kubernetes cluster, e.g. with k3d: `k3d cluster create`
 4. Apply the CRDs in your local cluster: `kubectl apply -f helm/hybrid-cloud-kafka-operator-crds/templates/`
-5. If you want to use the Azure EventHub backend: Either have the azure cli installed and configured with an active login or export the following environment variables: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
+5. If you want to use the Azure Event Hub backend: Either have the azure cli installed and configured with an active login or export the following environment variables: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
 6. Create a `config.yaml` to suit your needs
 7. Run `kopf run main.py -A`
 8. In another window apply some objects to the cluster to trigger the operator (see the `examples` folder)

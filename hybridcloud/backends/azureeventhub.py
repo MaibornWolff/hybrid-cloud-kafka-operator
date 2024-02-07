@@ -1,9 +1,11 @@
 import string
 from azure.core.exceptions import ResourceNotFoundError
-from azure.mgmt.eventhub.models import Eventhub, AuthorizationRule, AccessRights, RegenerateAccessKeyParameters, CheckNameAvailabilityParameter, EHNamespace, Sku
+from azure.mgmt.eventhub.models import Eventhub, AuthorizationRule, AccessRights, RegenerateAccessKeyParameters, CheckNameAvailabilityParameter, \
+    EHNamespace, Sku, NetworkRuleSet, NWRuleSetIpRules, NWRuleSetVirtualNetworkRules, Subnet
+from azure.mgmt.network.models import PrivateEndpoint, PrivateLinkServiceConnection
 from hybridcloud_core.configuration import get_one_of
 from hybridcloud_core.operator.reconcile_helpers import field_from_spec
-from ..util.azure import eventhub_client
+from ..util.azure import eventhub_client, network_client, privatedns_client
 
 
 ALLOWED_NAMESPACE_NAME_CHARACTERS = string.ascii_lowercase + string.digits + "-"
@@ -31,6 +33,8 @@ class AzureEventHubBackend:
     def __init__(self, logger):
         self._logger = logger
         self._eventhub_client = eventhub_client()
+        self._network_client = network_client()
+        self._dns_client = privatedns_client()
         self._subscription_id = _backend_config("subscription_id", fail_if_missing=True)
         self._location = _backend_config("location", fail_if_missing=True)
         self._resource_group = _backend_config("resource_group", fail_if_missing=True)
@@ -68,17 +72,91 @@ class AzureEventHubBackend:
             class_def = _backend_config(f"broker.classes.{size_class}", default={})
             sku = class_def.get("sku", sku)
             capacity = class_def.get("capacity", capacity)
-        parameters = EHNamespace(
-            location=self._location,
-            tags=_tags(namespace, name, extra_tags),
-            sku=Sku(name=sku, tier=sku, capacity=capacity)
-        )
-        result = self._eventhub_client.namespaces.begin_create_or_update(self._resource_group, broker_name, parameters).result()
+
+        existing = self.broker_exists(namespace, name)
+        if not existing or existing.sku.tier != sku or existing.sku.capacity != capacity:
+            parameters = EHNamespace(
+                location=self._location,
+                tags=_tags(namespace, name, extra_tags),
+                sku=Sku(name=sku, tier=sku, capacity=capacity)
+            )
+            self._logger.info("Creating eventhub namespace")
+            result = self._eventhub_client.namespaces.begin_create_or_update(self._resource_group, broker_name, parameters).result()
+            broker_id = result.id
+        else:
+            self._logger.info("Eventhub namespace already configured. Not updating it")
+            broker_id = existing.id
+
+        self._configure_networking(broker_name, broker_id)
+
         return {
             "azure_name": broker_name,
             "name": name,
             "namespace": namespace
         }
+
+    def _get_private_endpoint(self, resource_group, name):
+        try:
+            return self._network_client.private_endpoints.get(resource_group, name)
+        except ResourceNotFoundError:
+            return None
+
+    def _configure_networking(self, broker_name, broker_id):
+        # Create NetworkRuleSet
+        default_action = "Allow" if _backend_config("broker.network.public_network_access", True) else "Deny"
+        ip_rules = []
+        for rule in _backend_config("broker.network.allowed_ips", []):
+            ip_rules.append(NWRuleSetIpRules(ip_mask=rule["cidr"], action="Allow"))
+        vnet_rules = []
+        for rule in _backend_config("broker.network.allowed_subnets", []):
+            subnet_id = f"/subscriptions/{self._subscription_id}/resourceGroups/{self._resource_group}/providers/Microsoft.Network/virtualNetworks/{rule['vnet']}/subnets/{rule['subnet']}"
+            vnet_rules.append(NWRuleSetVirtualNetworkRules(subnet=Subnet(id=subnet_id), ignore_missing_vnet_service_endpoint=True))
+        parameters = NetworkRuleSet(
+            trusted_service_access_enabled=_backend_config("broker.network.allow_trusted_services", True),
+            public_network_access="Enabled" if _backend_config("broker.network.public_network_access", True) else "Disabled",
+            default_action=default_action,
+            virtual_network_rules=vnet_rules,
+            ip_rules=ip_rules,
+        )
+        self._logger.info("Configuring networkruleset")
+        self._eventhub_client.namespaces.create_or_update_network_rule_set(self._resource_group, broker_name, parameters)
+
+        # Create private endpoints
+        self._logger.info("Configuring private endpoints")
+        for rule in _backend_config("broker.network.allowed_subnets", []):
+            rg = rule.get("resource_group", self._resource_group)
+            endpoint_name = f"{broker_name}-{rule['vnet']}-{rule['subnet']}"
+            existing_endpoint = self._get_private_endpoint(rg, endpoint_name)
+            if not existing_endpoint:
+                self._logger.info(f"Creating endpoint for {rg}/vnets/{rule['vnet']}/subnets/{rule['subnet']}")
+                private_endpoint = self._network_client.private_endpoints.begin_create_or_update(
+                    rg,
+                    endpoint_name,
+                    parameters=PrivateEndpoint(
+                        location=self._location,
+                        subnet=Subnet(id=f"/subscriptions/{self._subscription_id}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworks/{rule['vnet']}/subnets/{rule['subnet']}"),
+                        private_link_service_connections=[PrivateLinkServiceConnection(
+                            name=f"link-{broker_name}",
+                            private_link_service_id=broker_id,
+                            group_ids=["namespace"]
+                        )],
+                    )
+                ).result()
+            else:
+                self._logger.info(f"Endpoint for {rg}/vnets/{rule['vnet']}/subnets/{rule['subnet']} already exists. Not creating it again")
+                private_endpoint = existing_endpoint
+
+            self._logger.info(f"Creating DNS record for {rg}/vnets/{rule['vnet']}/subnets/{rule['subnet']}")
+            self._dns_client.record_sets.create_or_update(
+                rg,
+                'privatelink.servicebus.windows.net',
+                'A',
+                broker_name,
+                {
+                    "ttl": 30,
+                    "arecords": [{"ipv4_address": private_endpoint.custom_dns_configs[0].ip_addresses[0]}]
+                }
+            )
 
     async def delete_broker(self, namespace, name):
         broker_name = _calc_namespace_name(namespace, name)
@@ -87,6 +165,25 @@ class AzureEventHubBackend:
             self.create_or_update_broker(namespace, name, None, {"marked-for-deletion": "yes"})
         else:
             self._eventhub_client.namespaces.begin_delete(self._resource_group, broker_name).result()
+            self._delete_networking(broker_name)
+
+    def _delete_networking(self, broker_name):
+        # Create private endpoints
+        self._logger.info("Deleting private endpoints")
+        for rule in _backend_config("broker.network.allowed_subnets", []):
+            rg = rule.get("resource_group", self._resource_group)
+            endpoint_name = f"{broker_name}-{rule['vnet']}-{rule['subnet']}"
+            # Create private endpoint with privateservicelink
+            self._logger.info(f"Deleting endpoint for {rg}/vnets/{rule['vnet']}/subnets/{rule['subnet']}")
+            self._network_client.private_endpoints.begin_delete(rg, endpoint_name).result()
+            # Create private DNS record
+            self._logger.info(f"Deleting DNS record for {rg}/vnets/{rule['vnet']}/subnets/{rule['subnet']}")
+            self._dns_client.record_sets.delete(
+                rg,
+                'privatelink.servicebus.windows.net',
+                'A',
+                broker_name
+            )
 
     def topic_spec_valid(self, namespace, name, spec, broker_info):
         topic_name = _calc_topic_name(namespace, name)
