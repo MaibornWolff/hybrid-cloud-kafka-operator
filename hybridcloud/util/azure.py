@@ -6,7 +6,7 @@ from hybridcloud_core.configuration import get_one_of
 
 
 def _subscription_id():
-    return get_one_of("backends.azureservicebus.subscription_id", "backends.azure.subscription_id", fail_if_missing=True)
+    return get_one_of("backends.azureeventhub.subscription_id", "backends.azure.subscription_id", fail_if_missing=True)
 
 
 def _credentials():
