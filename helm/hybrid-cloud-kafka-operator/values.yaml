@@ -17,7 +17,7 @@ serviceAccount:
   annotations: {}
   # The name of the service account to use.
   name: null
-  # This is required if the operator should install rabbitmq instaces, can be disabled if you only use the Azure ServiceBus backend
+  # This is required if the operator should install strimzi instances, can be disabled if you only use the Azure Event Hub backend
   clusterAdmin: true
 
 # Operator config.yaml
@@ -38,7 +38,12 @@ volumes: []
 # List of volume mounts for the operator pod
 volumeMounts: []
 
+
+# Extra annotations to add to the operator pods
 podAnnotations: {}
+
+# Extra labels to add to the operator pods
+podLabels: {}
 
 podSecurityContext: {}
 
