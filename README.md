@@ -96,6 +96,25 @@ If you configure the operator to create private endpoints, some rquirements must
 
 Right now the operator only supports one private endpoint per resource group due to the connection with the private DNS zone. Also if you change the list of subnets and remove one the operator will not remove the endpoints from existing Event Hub namespaces.
 
+### Using Azure Managed Identity
+
+Instead of using a service principal the operator can also be used with a managed identity using [Workload Identity](https://learn.microsoft.com/en-us/azure/aks/workload-identity-deploy-cluster). To do so:
+
+* Make sure your AKS cluster is configured with the workload identity feature.
+* Create the managed identity and assign it the needed permissions (e.g. Contributor role).
+* Establish the federated identity (as described in the linked guide), as subject use `system:serviceaccount:default:hybrid-cloud-kafka-operator` (assuming you install the operator into the `default` namespace and do not change the name of the serviceaccount).
+* Configure the operator to use the workload identity. Add the following to the values:
+
+  ```yaml
+    podLabels:
+      azure.workload.identity/use: "true"
+    serviceAccount:
+      annotations:
+        azure.workload.identity/client-id: <client-id-of-managed-identity>
+  ```
+
+* You do not need to provide a secret with credentials as described for the service principal.
+
 ### Deployment
 
 The operator can be deployed via helm chart:
