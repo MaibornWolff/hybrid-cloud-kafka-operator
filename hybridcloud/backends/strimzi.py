@@ -114,6 +114,25 @@ class StrimziBackend:
             "sasl.jaas.config": base64.b64decode(secret.data["sasl.jaas.config"]).decode("utf-8")
         }
 
+    async def create_or_update_broker_credentials(self, broker_info, reset_credentials=False):
+        namespace = broker_info["namespace"]
+        name = broker_info["name"]+"-owner"
+        user_spec = _generate_user_spec_admin(namespace, name, broker_info)
+        create_or_update_namespaced_custom_object(StrimziKafkaUser, namespace, name, user_spec)
+        user_obj = await _wait_for_user(namespace, name)
+        if not "username" in user_obj["status"] or not "secret" in user_obj["status"]:
+            raise kopf.TemporaryError("Could not determine credentials for user", delay=10)
+        secret_name = user_obj["status"]["secret"]
+        secret = get_secret(namespace, secret_name)
+        return {
+            "username": user_obj["status"]["username"],
+            "password": base64.b64decode(secret.data["password"]).decode("utf-8"),
+            "bootstrap_servers": broker_info["bootstrapServers"],
+            "security_protocol": "SASL_SSL",
+            "sasl_mechanism": "SCRAM-SHA-256",
+            "sasl.jaas.config": base64.b64decode(secret.data["sasl.jaas.config"]).decode("utf-8")
+        }
+
     async def delete_user(self, namespace, name, topic_info, broker_info):
         self._delete_user(namespace, name)
 
@@ -238,6 +257,36 @@ def _generate_user_spec(namespace, name, permissions, topic_info, broker_info):
         }
     }
 
+
+def _generate_user_spec_admin(namespace, name, broker_info):
+    return {
+        "apiVersion": "kafka.strimzi.io/v1beta2",
+        "kind": "KafkaUser",
+        "metadata": {
+            "name": name,
+            "namespace": namespace,
+            "labels": {
+                "strimzi.io/cluster": broker_info["name"]
+            }
+        },
+        "spec": {
+            "authentication": {
+                "type": "scram-sha-512"
+            },
+            "authorization": {
+                "type": "simple",
+                "acls": [
+                    {
+                         "resource": {
+                            "type": "cluster"
+                        },
+                        "operation": "All",
+                        "host": "*"
+                    }
+                ]
+            }
+        }
+    }
 
 async def _wait_for_broker(namespace, name):
     wait_time = 0

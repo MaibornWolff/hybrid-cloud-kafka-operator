@@ -27,6 +27,8 @@ spec:
                   properties:
                     class:
                       type: string
+                credentialsSecret:
+                  type: string
                 # allowedK8sNamespaces:
                 #   type: array
                 #   items:

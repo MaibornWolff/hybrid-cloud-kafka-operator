@@ -257,6 +257,26 @@ class AzureEventHubBackend:
             "topic": topic_info["azure_name"],
         }
 
+    async def create_or_update_broker_credentials(self, broker_info, reset_credentials=False):
+        return self._create_or_update_broker_auth("owner", broker_info, {"consume": True, "produce": True}, reset_credentials=reset_credentials)
+
+    def _create_or_update_broker_auth(self, rule_name, broker_info, permissions=None, reset_credentials=False):
+        parameters = AuthorizationRule(
+            rights=_determine_permissions(permissions)
+        )
+        rule = self._eventhub_client.namespaces.create_or_update_authorization_rule(self._resource_group, broker_info["azure_name"], rule_name, parameters)
+        keys = self._eventhub_client.namespaces.list_keys(self._resource_group, broker_info["azure_name"], rule_name)
+        if reset_credentials:
+            parameters = RegenerateAccessKeyParameters(key_type="PrimaryKey")
+            keys = self._eventhub_client.namespaces.regenerate_keys(self._resource_group, broker_info["azure_name"], rule_name, parameters)
+        return {
+            "username": "$ConnectionString",
+            "password": keys.primary_connection_string,
+            "bootstrap_servers": f"{broker_info['azure_name']}.servicebus.windows.net:9093",
+            "security_protocol": "SASL_SSL",
+            "sasl_mechanism": "PLAIN",
+        }
+
     async def delete_user(self, namespace, name, topic_info, broker_info):
         rule_name = _calc_rule_name(namespace, name)
         self._delete_rule(rule_name, topic_info, broker_info) 

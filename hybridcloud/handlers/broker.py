@@ -1,8 +1,8 @@
 import kopf
 from .routing import kafka_backend
 from hybridcloud_core.configuration import config_get
-from hybridcloud_core.operator.reconcile_helpers import ignore_control_label_change
-from hybridcloud_core.k8s.api import patch_namespaced_custom_object_status
+from hybridcloud_core.operator.reconcile_helpers import ignore_control_label_change, process_action_label
+from hybridcloud_core.k8s.api import patch_namespaced_custom_object_status, create_or_update_secret, get_secret, delete_secret
 from ..util import k8s
 from ..util.constants import BACKOFF
 
@@ -38,6 +38,26 @@ async def broker_manage(spec, meta, labels, name, namespace, body, status, retry
     logger.info("Starting create/update of broker")
     # Create broker
     broker_info = await backend.create_or_update_broker(namespace, name, spec)
+
+    if "credentialsSecret" in spec:
+        logger.info("Handling broker credentials")
+        credentials_secret = get_secret(namespace, spec["credentialsSecret"])
+        reset_credentials = False
+
+        def action_reset_credentials():
+            nonlocal credentials_secret
+            nonlocal reset_credentials
+            credentials_secret = None
+            reset_credentials = True
+            return "Credentials reset"
+        process_action_label(labels, {
+            "reset-credentials": action_reset_credentials,
+        }, body, k8s.KafkaBroker)
+
+        # Generate credentials
+        if not credentials_secret:
+            credentials = await backend.create_or_update_broker_credentials(broker_info, reset_credentials=reset_credentials)
+            create_or_update_secret(namespace, spec["credentialsSecret"], credentials)
 
     # mark success
     _status(name, namespace, status, "finished", "Broker created", backend=backend_name, broker_info=broker_info)

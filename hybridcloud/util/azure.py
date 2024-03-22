@@ -20,5 +20,6 @@ def eventhub_client() -> EventHubManagementClient:
 def network_client():
     return NetworkManagementClient(_credentials(), _subscription_id())
 
+
 def privatedns_client():
     return PrivateDnsManagementClient(_credentials(), _subscription_id())

@@ -87,7 +87,7 @@ For the operator to interact with Azure it needs credentials. For local testing 
 
 ### Azure Event Hubs
 
-If you configure the operator to create private endpoints, some rquirements must be met:
+If you configure the operator to create private endpoints, some requirements must be met:
 
 * The user/principal/identity the operator uses must have permissions to manage networks (to configure the private endpoints) and DNS zones.
 * You must have at least one virtual network with a subnet in the resource group.
@@ -146,6 +146,7 @@ spec:
   backend: strimzi # Name of the backend to use, optional, should be left empty unless provided by the admin
   size:  # Size configuration, optional
     class: small  # Name of a size class, available classes are specified by the operator admin. Use only if told to by your admin.
+  credentialsSecret: broker-credentials  # Name of a secret where the credentials for the broker should be stored, optional. If not set no broker-wide credentials will be created
 ```
 
 For each broker one or more topics can be created with the `KafkaTopic` resource which has the following options:
