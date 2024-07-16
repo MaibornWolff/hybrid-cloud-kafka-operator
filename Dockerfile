@@ -1,13 +1,13 @@
-FROM python:3.10 as base
+FROM python:3.12 as base
 # Download requirements from the full image as git is required but not contained in the slim image
 COPY requirements.txt /operator/requirements.txt
 RUN pip install -r /operator/requirements.txt && rm -rf /root/.cache/pip
 
-FROM python:3.10-slim
+FROM python:3.12-slim
 RUN mkdir /operator
 WORKDIR /operator
 # Install python dependencies
-COPY --from=base /usr/local/lib/python3.10/site-packages/ /usr/local/lib/python3.10/site-packages/
+COPY --from=base /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
 COPY --from=base /usr/local/bin/kopf /usr/local/bin/kopf
 # Copy operator code
 COPY main.py /operator/
