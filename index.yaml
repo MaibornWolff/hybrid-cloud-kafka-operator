@@ -3,6 +3,21 @@ entries:
   hybrid-cloud-kafka-operator:
   - apiVersion: v2
     appVersion: 0.1.0
+    created: "2024-07-16T13:08:38.732211951Z"
+    dependencies:
+    - condition: strimzi.enabled
+      name: strimzi-kafka-operator
+      repository: https://strimzi.io/charts/
+      version: ~0.35.0
+    description: A Helm chart for Kubernetes
+    digest: dac874ffd27acd08bb1cad1105d51f7434b051eb0aadf10277bfd81af7f7ca3b
+    name: hybrid-cloud-kafka-operator
+    type: application
+    urls:
+    - https://MaibornWolff.github.io/hybrid-cloud-kafka-operator/hybrid-cloud-kafka-operator-0.2.0.tgz
+    version: 0.2.0
+  - apiVersion: v2
+    appVersion: 0.1.0
     created: "2024-02-13T10:39:36.275625474Z"
     dependencies:
     - condition: strimzi.enabled
@@ -64,6 +79,16 @@ entries:
   hybrid-cloud-kafka-operator-crds:
   - apiVersion: v2
     appVersion: 0.1.0
+    created: "2024-07-16T13:08:38.732366902Z"
+    description: A Helm chart for Kubernetes
+    digest: 7ef8f557815cb5f8df0a8e0f52fe8acf5a0684b072c4819ec6a7d2cc6b857afe
+    name: hybrid-cloud-kafka-operator-crds
+    type: application
+    urls:
+    - https://MaibornWolff.github.io/hybrid-cloud-kafka-operator/hybrid-cloud-kafka-operator-crds-0.2.0.tgz
+    version: 0.2.0
+  - apiVersion: v2
+    appVersion: 0.1.0
     created: "2024-02-13T10:39:36.275782684Z"
     description: A Helm chart for Kubernetes
     digest: 0ba194da511bb0e4bb084c9ace3f16b1c12a28285111eabcbaa6b6587618ad68
@@ -102,4 +127,4 @@ entries:
     urls:
     - https://MaibornWolff.github.io/hybrid-cloud-kafka-operator/hybrid-cloud-kafka-operator-crds-0.0.1.tgz
     version: 0.0.1
-generated: "2024-02-13T10:39:36.270720784Z"
+generated: "2024-07-16T13:08:38.727283927Z"
